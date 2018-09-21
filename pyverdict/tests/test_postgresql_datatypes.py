@@ -9,9 +9,9 @@ test_table = 'pyverdict_datatype_test_table'
 
 
 def test_data_types():
-    (mysql_conn, verdict_conn) = setup_sandbox()
+    (postgresql_conn, verdict_conn) = setup_sandbox()
 
-    result = verdict_conn.sql('select * from {}.{}'.format(test_schema, test_table))
+    result = verdict_conn.sql('select * from {}.{};'.format(test_schema, test_table))
     int_types = result.typeJavaInt()
     types = result.types()
     rows = result.rows()
@@ -20,8 +20,8 @@ def test_data_types():
     print(rows)
     # print([type(x) for x in rows[0]])
 
-    cur = mysql_conn.cursor()
-    cur.execute('select * from {}.{}'.format(test_schema, test_table))
+    cur = postgresql_conn.cursor()
+    cur.execute('select * from {}.{};'.format(test_schema, test_table))
     expected_rows = cur.fetchall()
     print(expected_rows)
     cur.close()
@@ -36,7 +36,7 @@ def test_data_types():
         for j in range(len(expected_row)):
             compare_value(expected_row[j], actual_row[j])
 
-    tear_down(mysql_conn)
+    tear_down(postgresql_conn)
 
 
 def compare_value(expected, actual):
@@ -54,26 +54,27 @@ def compare_value(expected, actual):
 
 
 def setup_sandbox():
-    url = 'localhost'
+    url = '127.0.0.1'
     dbname = 'test'
-    user = 'root'
+    port = 5432
+    user = 'postgres'
     password = ''
 
     # create table and populate data
-    postgresql_conn = postgresql_connect(url, dbname, user, password)
+    postgresql_conn = postgresql_connect(url, dbname, port, user, password)
     cur = postgresql_conn.cursor()
-    # cur.execute('DROP SCHEMA IF EXISTS ' + test_schema)
-    # cur.execute('CREATE SCHEMA IF NOT EXISTS ' + test_schema)
-    cur.execute('CREATE TYPE enumType AS ENUM (\'test1\', \'test2\')')
+    cur.execute('DROP SCHEMA IF EXISTS ' + test_schema + ' CASCADE;')
+    cur.execute('CREATE SCHEMA IF NOT EXISTS ' + test_schema + ';')
+    # cur.execute('CREATE TYPE enumType AS ENUM (\'test1\', \'test2\');')
+    # cur.execute("""
+    #     CREATE TYPE compositeType AS (
+    #         i   INT,
+    #         r   REAL,
+    #         t   TEXT
+    #     );"""
+    # )
     cur.execute("""
-        CREATE TYPE compositeType AS (
-            i   INT
-            r   REAL
-            t   TEXT
-        );
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS {} (
+        CREATE TABLE IF NOT EXISTS {}.{} (
           smallIntCol       SMALLINT,
           intCol            INTEGER,
           bigIntCol         BIGINT,
@@ -83,76 +84,48 @@ def setup_sandbox():
           doubleCol         DOUBLE PRECISION,
           smallSerialCol    SMALLSERIAL,
           serialCol         SERIAL,
-          bigSerialCol      BIGSERIAL,
-          moneyCol          MONEY,
-          varcharCol        VARCHAR(4),
-          charCol           CHAR(4),
-          textCol           TEXT,
-          byteCol           BYTEA,
-          timestampCol      TIMESTAMP,
-          timestampZCol     TIMESTAMP WITH TIME ZONE,
-          dateCol           DATE,
-          timeCol           TIME,
-          timeZCol          TIME WITH TIME ZONE,
-          intervalCol       INTERVAL,
-          boolCol           BOOLEAN,
-          enumCol           enumType,
-          pointCol          POINT,
-          lineCol           LINE,
-          lsegCol           LSEG,
-          boxCol            BOX,
-          pathCol           PATH,
-          polygonCol        POLYGON,
-          circleCol         CIRCLE,
-          cidrCol           CIDR,
-          inetCol           INET,
-          macaddrCol        MACADDR,
-          bitCol            BIT(4),
-          bitVarCol         BIT VARYING(4),
-          uuidCol           UUID,
-          xmlCol            XML,
-          jsonCol           JSON,
-          jsonbCol          JSONB,
-          arrayCol          TEXT [],
-          
-        );""".format(test_table)
-        )
+          bigSerialCol      BIGSERIAL
+        );""".format(test_schema, test_table)
+    )
+
     cur.execute("""
         INSERT INTO {}.{} VALUES (
-          1, 'abcd', 'abcd', 'abcde', 1, 2, DEFAULT, 0.5, 0.05, 
-        )""".format(test_schema, test_table)
-        )
+            1, 1, 1, 1.0, 1.0, 1.5, 1.5, DEFAULT, DEFAULT, DEFAULT
+        );""".format(test_schema, test_table)
+    )
+
     cur.execute("""
         INSERT INTO {}.{} VALUES (
-            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
-        )""".format(test_schema, test_table)
-        )
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL, DEFAULT, DEFAULT, DEFAULT
+        );""".format(test_schema, test_table)
+    )
+
+    postgresql_conn.commit()
     cur.close()
 
     # create verdict connection
     thispath = os.path.dirname(os.path.realpath(__file__))
-    mysql_jar = os.path.join(thispath, 'lib', 'mysql-connector-java-5.1.46.jar')
-    verdict_conn = verdict_connect(url, dbname, user, password, mysql_jar)
+    postgresql_jar = os.path.join(thispath, 'lib', 'postgresql-42.2.5.jre7.jar')
+    verdict_conn = verdict_connect(url, dbname, user, password, postgresql_jar)
 
     return (postgresql_conn, verdict_conn)
 
 
-def tear_down(mysql_conn):
-    cur = mysql_conn.cursor()
-    cur.execute('DROP SCHEMA IF EXISTS ' + test_schema)
+def tear_down(postgresql_conn):
+    cur = postgresql_conn.cursor()
+    cur.execute('DROP SCHEMA IF EXISTS ' + test_schema + ' CASCADE;')
     cur.close()
-    mysql_conn.close()
+    postgresql_conn.close()
 
 
-def verdict_connect(host, port, usr, pwd, class_path):
+def verdict_connect(host, dbname, usr, pwd, class_path):
     connection_string = \
-        'jdbc:mysql://{:s}:{:d}?user={:s}&password={:s}'.format(host, port, usr, pwd)
+        'jdbc:postgresql://{:s}/{:s}?user={:s}&password={:s}'.format(host, dbname, usr, pwd)
     return pyverdict.VerdictContext(connection_string, class_path)
 
 
-def postgresql_connect(host, dbname, usr, pwd):
-    return psycopg2.connect(host=host, dbname=dbname, user=usr, password=pwd)
+def postgresql_connect(host, dbname, port, usr, pwd):
+    return psycopg2.connect(host=host, dbname=dbname, port=port, user=usr)
+
+if __name__ == '__main__':
+    test_data_types()
