@@ -84,19 +84,45 @@ def setup_sandbox():
           doubleCol         DOUBLE PRECISION,
           smallSerialCol    SMALLSERIAL,
           serialCol         SERIAL,
-          bigSerialCol      BIGSERIAL
+          bigSerialCol      BIGSERIAL,
+          moneyCol          MONEY,
+          varcharCol        VARCHAR(4),
+          charCol           CHAR(4),
+          textCol           TEXT,
+          byteCol           BYTEA,
+          timestampCol      TIMESTAMP,
+          timestampZCol     TIMESTAMP WITH TIME ZONE,
+          dateCol           DATE,
+          timeCol           TIME,
+          timeZCol          TIME WITH TIME ZONE,
+          intervalCol       INTERVAL,
+          boolCol           BOOLEAN,
+          pointCol          POINT,
+          lineCol           LINE,
+          lsegCol           LSEG,
+          boxCol            BOX,
+          pathCol           PATH,
+          polygonCol        POLYGON,
+          circleCol         CIRCLE
+        );""".format(test_schema, test_table)
+    )
+    postgresql_conn.commit()
+
+    cur.execute("""
+        INSERT INTO {}.{} VALUES (
+            1, 1, 1, 1.0, 1.0, 1.5, 1.5, DEFAULT, DEFAULT, DEFAULT,
+            '$1000.00', 'abc', 'abc', 'hello world', '\\xDEADBEEF',
+            '2018-12-31 12:59:59', '2018-12-31 12:59:59+08', '2018-12-31', '12:59:59', '12:59:59+08', '1 year 1 month 1 day 1 hour 1 minute 1 second',
+            TRUE, '(2,4)', '(0,0),(2,3)', '(0,0),(7,6)', '(0,0),(2,3)', '(0,0),(1,2),(2,3),(9,9)', '(0,0),(0,1),(1,1),(1,0)', '0,0,1'
         );""".format(test_schema, test_table)
     )
 
     cur.execute("""
         INSERT INTO {}.{} VALUES (
-            1, 1, 1, 1.0, 1.0, 1.5, 1.5, DEFAULT, DEFAULT, DEFAULT
-        );""".format(test_schema, test_table)
-    )
-
-    cur.execute("""
-        INSERT INTO {}.{} VALUES (
-            NULL, NULL, NULL, NULL, NULL, NULL, NULL, DEFAULT, DEFAULT, DEFAULT
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL, DEFAULT, DEFAULT, DEFAULT,
+            NULL, NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
         );""".format(test_schema, test_table)
     )
 
